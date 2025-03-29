@@ -1,21 +1,42 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
 import CartContext from '../../context/CartContext';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
   const { isAuthenticated, user, logout } = useContext(AuthContext);
   const { cartItems } = useContext(CartContext);
   const navigate = useNavigate();
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownRef]);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
+  const toggleDropdown = () => {
+    setIsDropdownOpen(!isDropdownOpen);
+  };
+
   const handleLogout = () => {
     logout();
+    setIsDropdownOpen(false);
     navigate('/');
   };
 
@@ -28,6 +49,9 @@ const Header = () => {
       navigate('/products');
     }
   };
+
+  // Check if user is admin - making it more robust
+  const isAdmin = user && (user.role === 'admin' || user.isAdmin === true);
 
   return (
     <header className="bg-white shadow-md">
@@ -71,38 +95,54 @@ const Header = () => {
               )}
             </Link>
             {isAuthenticated ? (
-              <div className="relative group">
-                <button className="text-gray-700 hover:text-primary-600">
-                  {user.name}
+              <div className="relative" ref={dropdownRef}>
+                <button 
+                  className="text-gray-700 hover:text-primary-600 flex items-center"
+                  onClick={toggleDropdown}
+                >
+                  <span>{user.name || 'Admin User'}</span>
+                  <svg 
+                    className={`ml-1 h-4 w-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden group-hover:block">
-                  <Link
-                    to="/profile"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Profile
-                  </Link>
-                  <Link
-                    to="/orderhistory"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Order History
-                  </Link>
-                  {user.role === 'admin' && (
+                {isDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
                     <Link
-                      to="/admin/dashboard"
+                      to="/profile"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsDropdownOpen(false)}
                     >
-                      Admin Dashboard
+                      Profile
                     </Link>
-                  )}
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Logout
-                  </button>
-                </div>
+                    <Link
+                      to="/orderhistory"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Order History
+                    </Link>
+                    {isAdmin && (
+                      <Link
+                        to="/admin/dashboard"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 font-semibold bg-gray-50"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        Admin Dashboard
+                      </Link>
+                    )}
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <Link to="/login" className="text-gray-700 hover:text-primary-600">
@@ -203,11 +243,11 @@ const Header = () => {
                       Order History
                     </Link>
                   </li>
-                  {user.role === 'admin' && (
+                  {isAdmin && (
                     <li>
                       <Link
                         to="/admin/dashboard"
-                        className="block text-gray-700 hover:text-primary-600"
+                        className="block text-gray-700 hover:text-primary-600 font-semibold"
                         onClick={() => setIsMenuOpen(false)}
                       >
                         Admin Dashboard
